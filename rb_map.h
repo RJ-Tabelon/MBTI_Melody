@@ -1,18 +1,20 @@
 #include <iostream>
+#include <queue>
 #include "song.h"
 using namespace std;
 
 #ifndef PROJECT_3_MBTI_MELODY_RB_MAP_H
 #define PROJECT_3_MBTI_MELODY_RB_MAP_H
 
+template <typename KeyType>
 class rb_map {
     struct rbNode {
-        string key;
+        KeyType key;
         Song* val;
         // true if Red, false if Black
         bool isRed;
         rbNode *parent, *left, *right;
-        rbNode(string& key, Song *val) {
+        rbNode(KeyType& key, Song *val) {
             this->key = key;
             this->val = val;
             isRed = true;
@@ -21,8 +23,10 @@ class rb_map {
             right = nullptr;
         }
     };
+
     rbNode *root;
-    int count;
+    int elementSize;
+
     void leftRotate(rbNode* &node) {
         rbNode* child = node->right;
         // Exchange Subtrees
@@ -44,6 +48,7 @@ class rb_map {
         child->left = node;
         node->parent = child;
     }
+
     void rightRotate(rbNode* &node) {
         // Is Symmetric to leftRotate
         rbNode* child = node->left;
@@ -65,20 +70,56 @@ class rb_map {
         child->right = node;
         node->parent = child;
     }
+
+    void replace(rbNode* &oldNode, rbNode* &newNode) {
+        // Update the Information of the Parents
+        if (oldNode->parent == nullptr) {
+            root = newNode;
+        } else if (oldNode == oldNode->parent->left) {
+            // Change the Child
+            oldNode->parent->left = newNode;
+        } else {
+            oldNode->parent->right = newNode;
+        }
+
+        // Update the New Node
+        if (newNode != nullptr) {
+            newNode->parent = oldNode->parent;
+        }
+    }
+
+    void cut(rbNode* node) {
+        // Use Postorder Traversal to Delete Children Before Parents
+        while (node != nullptr) {
+            cut(node->left);
+            cut(node->right);
+            delete node;
+        }
+    }
 public:
     rb_map() {
-        // FIXME: In Progress
+        root = nullptr;
+        elementSize = 0;
     }
-    // std::map Functions
+
+    ~rb_map() {
+        cut(root);
+    }
+
     // Inspired by Insertion Slides in "4 - Balanced Trees"
-    void insert(string& key, Song *val) {
+    bool insert(KeyType& key, Song *val) {
         // Default Node is Red Leaf
         rbNode *node = new rbNode(key, val), *parent = nullptr, *curr = root;
 
         // Find Leaf Entry
         while (curr != nullptr) {
             parent = curr;
-            if (node->key < curr->key) {
+            // Detect Duplicate Keys
+            if (key == curr->key) {
+                delete node;
+                return false;
+            }
+            if (key < curr->key) {
                 curr = curr->left;
             } else {
                 curr = curr->right;
@@ -95,9 +136,11 @@ public:
         } else {
             parent->right = node;
         }
+        
+        elementSize++;
 
         // Recolor and Rotate to Maintain Rules of Tree
-        rbNode* grandparent = nullptr;
+        rbNode* grandparent;
         while (node != root && node->isRed && node->parent->isRed) {
             parent = node->parent;
             grandparent = parent->parent;
@@ -146,9 +189,10 @@ public:
         }
         // Color the Root Black
         root->isRed = false;
+        return true;
     }
 
-    rbNode* search(string& key) {
+    rbNode* search(KeyType& key) {
         rbNode* curr = root;
         while (curr != nullptr) {
             if (key == curr->key) {
@@ -163,41 +207,177 @@ public:
         return nullptr;
     }
 
-    void replace(rbNode* &oldNode, rbNode* &newNode) {
-        // Update the Information of the Parents
-        if (oldNode->parent == nullptr) {
-            root = newNode;
-        } else if (oldNode == oldNode->parent->left) {
-            // Change the Child
-            oldNode->parent->left = newNode;
-        } else {
-            oldNode->parent->right = newNode;
-        }
-
-        // Update the New Node
-        if (newNode != nullptr) {
-            newNode->parent = oldNode->parent;
-        }
-    }
-
-    void remove(string& key) {
+    void remove(KeyType& key) {
         rbNode* node = search(key);
         if (node == nullptr)  {
             cout << "'" << key << "' was not found." << endl;
             return;
         }
 
-        rbNode *y = node, *x;
-        bool original = y->isRed;
+        rbNode *tracker = node, *replacement;
+        bool originalRed = tracker->isRed;
+        // Check the Cases of One Child and Multiple Children
         if (node->left == nullptr) {
-            // FIXME: In Progress
+            replacement = node->right;
+            replace(node, node->right);
+        } else if (node->right == nullptr) {
+            replacement = node->left;
+            replace(node, node->left);
+        } else {
+            // Find the Inorder Predecessor (Min of Right Subtree)
+            tracker = node->right;
+            while (tracker->left != nullptr) {
+                tracker = tracker->left;
+            }
+            originalRed = tracker->isRed;
+            replacement = tracker->right;
+            if (tracker->parent == node && replacement != nullptr) {
+                replacement->parent = tracker;
+            } else {
+                replace(tracker, tracker->right);
+                tracker->right = node->right;
+                tracker->right->parent = tracker;
+            }
+            replace(node, tracker);
+            tracker->left = node->left;
+            tracker->left->parent = tracker;
+            tracker->isRed = node->isRed;
+        }
+
+        delete node;
+        elementSize--;
+
+        if (!originalRed) {
+            while (replacement != root && !replacement->isRed) {
+                if (replacement == replacement->parent->left) {
+                    rbNode* sibling = replacement->parent->right;
+                    // Check When Sibling is Red w/ Black Children
+                    if (sibling->isRed) {
+                        sibling->isRed = false;
+                        replacement->parent->isRed = true;
+                        leftRotate(replacement->parent);
+                        sibling = replacement->parent->right;
+                    }
+                    // Check When Sibling is Black w/ Black Children if Any
+                    if ((sibling->left == nullptr || !sibling->left->isRed) &&
+                        (sibling->right == nullptr || !sibling->right->isRed)) {
+                        sibling->isRed = true;
+                        replacement = replacement->parent;
+                    } else {
+                        // Check When Sibling is Black w/ One Child Red and One Black if Any
+                        if (sibling->right == nullptr || !sibling->right->isRed) {
+                            sibling->isRed = true;
+                            if (sibling->left == nullptr) {
+                                sibling->left->isRed = false;
+                            }
+                            rightRotate(sibling);
+                            sibling = replacement->parent->right;
+                        }
+                        sibling->isRed = replacement->parent->isRed;
+                        replacement->parent->isRed = false;
+                        if (sibling->right == nullptr) {
+                            sibling->right->isRed = false;
+                        }
+                        leftRotate(replacement->parent);
+                        // End Loop
+                        replacement = root;
+                    }
+                } else {
+                    // Is Symmetric w/ Other Condition
+                    rbNode* sibling = replacement->parent->left;
+                    // Check When Sibling is Red w/ Black Children
+                    if (sibling->isRed) {
+                        sibling->isRed = false;
+                        replacement->parent->isRed = true;
+                        rightRotate(replacement->parent);
+                        sibling = replacement->parent->left;
+                    }
+                    // Check When Sibling is Black w/ Black Children if Any
+                    if ((sibling->right == nullptr || !sibling->right->isRed) &&
+                        (sibling->left == nullptr || !sibling->left->isRed)) {
+                        sibling->isRed = true;
+                        replacement = replacement->parent;
+                    } else
+                        // Check When Sibling is Black w/ One Child Red and One Black if Any
+                    if (sibling->left == nullptr || !sibling->left->isRed) {
+                        sibling->isRed = true;
+                        if (sibling->right == nullptr) {
+                            sibling->right->isRed = false;
+                        }
+                        leftRotate(sibling);
+                        sibling = replacement->parent->left;
+                    }
+                    sibling->isRed = replacement->parent->isRed;
+                    replacement->parent->isRed = false;
+                    if (sibling->left == nullptr) {
+                        sibling->left->isRed = false;
+                    }
+                    rightRotate(replacement->parent);
+                    // End Loop
+                    replacement = root;
+                }
+            }
+            replacement->isRed = false;
+        }
+    }
+    
+    int count(KeyType& key) {
+        if (this->search(key) == nullptr) {
+            return 0;
+        }
+        return 1;
+    }
+
+    int size() const {
+        return elementSize;
+    }
+
+    bool empty() const {
+        if (elementSize) {
+            return false;
+        }
+        return true;
+    }
+
+    void printLevelOrder(int n) {
+        // Validate Input
+        if (root == nullptr) {
+            cout << "There is no data to traverse." << endl;
+            return;
+        } else if (n <= 0) {
+            cout << "The amount to traverse must be positive." << endl;
+            return;
+        }
+
+        queue<rbNode*> q;
+        q.push(root);
+        int count = 0;
+
+        while (!q.empty() && count < n) {
+            rbNode* curr = q.front();
+            q.pop();
+            cout << curr->key << ": " << curr->val->track_name << endl;
+            count++;
+
+            // Enqueue Children
+            if (curr->left != nullptr) {
+                q.push(curr->left);
+            }
+            if (curr->right != nullptr) {
+                q.push(curr->right);
+            }
+        }
+
+        if (count < n) {
+            cout << "There are currently less than " << n << " nodes." << endl;
         }
     }
 
-    // operator[]()
-    // count()
-    // size()
-    // empty()
+    Song* operator[](KeyType& key) {
+        rbNode* node = search(key);
+        return node->val;
+    }
+
 };
 
 #endif //PROJECT_3_MBTI_MELODY_RB_MAP_H
