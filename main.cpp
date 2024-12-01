@@ -4,65 +4,8 @@
 #include <unordered_map>
 #include <regex>
 #include <set>
+#include "song.h"
 using namespace std;
-
-struct Song {
-    int row, popularity, duration_ms, key, time_signature;
-    string track_id, artist, album_name, track_name, track_genre;
-    bool explicit_b, mode;
-    float danceability, energy, loudness, speechiness, acousticness, instrumentalness, liveness, valence, tempo;
-    Song() {
-        this->row = 0;
-        this->track_id = "";
-        this->artist = "";
-        this->album_name = "";
-        this->track_name = "";
-        this->popularity = 0;
-        this->duration_ms = 0;
-        this->explicit_b = 0;
-        this->danceability = 0.0;
-        this->energy = 0.0;
-        this->key = 0;
-        this->loudness = 0.0;
-        this->mode = 0;
-        this->speechiness = 0.0;
-        this->acousticness = 0.0;
-        this->instrumentalness = 0.0;
-        this->liveness = 0.0;
-        this->valence = 0.0;
-        this->tempo = 0.0;
-        this->time_signature = 0;
-        this->track_genre = "";
-    }
-    Song(int row, string track_id, string artist, string album_name,
-         string track_name, int popularity, int duration_ms, bool explicit_b,
-         float danceability, float energy, int key, float loudness, bool mode,
-         float speechiness, float acousticness, float instrumentalness,
-         float liveness, float valence, float tempo, int time_signature,
-         string track_genre) {
-        this->row = row;
-        this->track_id = track_id;
-        this->artist = artist;
-        this->album_name = album_name;
-        this->track_name = track_name;
-        this->popularity = popularity;
-        this->duration_ms = duration_ms;
-        this->explicit_b = explicit_b;
-        this->danceability = danceability;
-        this->energy = energy;
-        this->key = key;
-        this->loudness = loudness;
-        this->mode = mode;
-        this->speechiness = speechiness;
-        this->acousticness = acousticness;
-        this->instrumentalness = instrumentalness;
-        this->liveness = liveness;
-        this->valence = valence;
-        this->tempo = tempo;
-        this->time_signature = time_signature;
-        this->track_genre = track_genre;
-    }
-};
 
 int main() {
     ifstream inFile("dataset.csv");
@@ -149,9 +92,7 @@ int main() {
             if (regex_search(track_name, parentheses)) {
                 while (getline(inFile, token, ',')) {
                     track_name += "," + token;
-                    // cout << "ERROR: " << track_name << endl;
                     if (regex_search(token, ending)) {
-                        // cout << row_s << " : " << track_name << endl;
                         break;
                     }
                 }
@@ -159,9 +100,7 @@ int main() {
 
             getline(inFile, popularity_s, ',');
             while (popularity_s[0] == ' ' || regex_search(popularity_s, digits) || !regex_match(popularity_s, number)) {
-                // cout << row_s << ", " << popularity_s << " : " << (popularity_s[0] == ' ') << " or " << regex_search(popularity_s, digits) << " or " << !regex_match(popularity_s, number) << endl;
                 if (regex_match(popularity_s, milliseconds)) {
-                    // cout << row_s << " : " << popularity_s << endl;
                     break;
                 }
                 track_name += "," + popularity_s;
@@ -266,12 +205,6 @@ int main() {
         cout << "Track Genre: " << track_genre << endl << endl;
     }
     inFile.close();
-
-    // cout << songs[113999].album_name << endl;
-
-//    for (auto &genre : genres) {
-//        cout << genre << endl;
-//    }
 
     return 0;
 }
