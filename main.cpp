@@ -5,6 +5,7 @@
 #include <regex>
 #include <set>
 #include "song.h"
+#include "rb_map.h"
 using namespace std;
 
 int main() {
@@ -20,7 +21,8 @@ int main() {
             duration_ms_s, explicit_s, danceability_s, energy_s, key_s, loudness_s, mode_s,
             speechiness_s, acousticness_s, instrumentalness_s, liveness_s, valence_s, tempo_s,
             time_signature_s, track_genre, junk;
-    unordered_map<int, Song> songs;
+    // FIXME: Currently, the Key is Row, But It Should Be Similarity Score
+    rb_map<int> songs;
     set<string> genres;
 
     getline(inFile, row_s, ',');
@@ -172,11 +174,11 @@ int main() {
 
             getline(inFile, track_genre);
 
-            Song song = Song(row, track_id, artist, album_name, track_name, popularity,
+            Song *song = new Song(row, track_id, artist, album_name, track_name, popularity,
                              duration_ms, explicit_b, danceability, energy, key, loudness, mode,
                              speechiness, acousticness, instrumentalness, liveness, valence, tempo,
                              time_signature, track_genre);
-            songs[row] = song;
+            songs.insert(row, song);
 
             genres.insert(track_genre);
         }
@@ -205,6 +207,9 @@ int main() {
         cout << "Track Genre: " << track_genre << endl << endl;
     }
     inFile.close();
+
+    // Print the First 10 Songs Based on Row
+    // songs.printLevelOrder(10);
 
     return 0;
 }
